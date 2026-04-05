@@ -1,0 +1,10 @@
+/* Universal Audio Translator — Content Styles */
+/* Shadow DOM kullanıldığı için minimal global CSS */
+/* Sayfa CSS'ini etkilememeli */
+
+#uat-subtitle-host {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+}

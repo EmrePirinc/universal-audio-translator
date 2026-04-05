@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Audio Translator</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Üst Bar -->
+    <div class="header">
+      <div class="header-left">
+        <h1>Universal Translator</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      <div class="header-right">
+        <button id="btn-settings" class="icon-btn" title="Ayarlar">&#9881;</button>
+      </div>
+    </div>
+
+    <!-- API Key (ilk kullanımda) -->
+    <div id="api-key-section" class="section" style="display:none">
+      <label class="label">Gemini API Key</label>
+      <div class="input-row">
+        <input type="password" id="input-api-key" placeholder="API key girin..." class="input">
+        <button id="btn-save-key" class="btn btn-sm">Kaydet</button>
+      </div>
+      <div id="api-key-status" class="status-text"></div>
+    </div>
+
+    <!-- Başlat/Durdur -->
+    <div class="section">
+      <button id="btn-toggle" class="btn btn-primary btn-full">Başlat</button>
+      <div id="status-bar" class="status-bar">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Hazır</span>
+      </div>
+    </div>
+
+    <!-- Model Seçimi -->
+    <div class="section">
+      <label class="label">Model</label>
+      <select id="select-model" class="select">
+        <option value="gemini-3.1-flash-live-preview">Gemini 3.1 Flash Live</option>
+        <option value="gemini-2.5-flash-native-audio">Gemini 2.5 Flash</option>
+      </select>
+    </div>
+
+    <!-- Hedef Dil -->
+    <div class="section">
+      <label class="label">Hedef Dil</label>
+      <select id="select-language" class="select">
+        <option value="tr">Türkçe</option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+        <option value="it">Italiano</option>
+        <option value="pt">Português</option>
+        <option value="ru">Русский</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+        <option value="zh">中文</option>
+        <option value="ar">العربية</option>
+      </select>
+    </div>
+
+    <!-- Altyazı -->
+    <div class="section">
+      <div class="row">
+        <label class="label">Altyazı</label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-subtitle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="row">
+        <label class="label-sm">Boyut</label>
+        <input type="range" id="slider-size" min="14" max="36" value="20" class="slider">
+        <span id="size-value" class="label-sm">20px</span>
+      </div>
+    </div>
+
+    <!-- Kaydet -->
+    <button id="btn-save" class="btn btn-accent btn-full">Kaydet</button>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
