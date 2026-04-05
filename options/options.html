@@ -2,10 +2,215 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Universal Audio Translator — Ayarlar</title>
+  <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <h1>Ayarlar</h1>
-  <p>WBS 1.7'de implement edilecek.</p>
+  <div class="layout">
+    <!-- Sol Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h1>Universal Translator</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      <ul class="nav-list">
+        <li class="nav-item active" data-page="general">Temel Ayarlar</li>
+        <li class="nav-item" data-page="subtitle-style">Altyazı Stili</li>
+        <li class="nav-item" data-page="disabled-sites">Devre Dışı Siteler</li>
+        <li class="nav-item" data-page="api-keys">API Anahtarları</li>
+      </ul>
+    </nav>
+
+    <!-- Sağ İçerik -->
+    <main class="content">
+
+      <!-- Temel Ayarlar -->
+      <section id="page-general" class="page active">
+        <h2>Temel Ayarlar</h2>
+        <p class="page-desc">Temel tercihlerinizi burada yönetin.</p>
+
+        <div class="setting-card">
+          <div class="setting-info">
+            <strong>Aynı dilde çeviriyi atla</strong>
+            <p>Etkinleştirildiğinde, altyazı dili hedef dille aynıysa dublaj çeviri yapılmadan doğrudan başlar.</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="opt-skip-same-lang">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-card">
+          <div class="setting-info">
+            <strong>E-posta bildirimleri</strong>
+            <p>Altyazı tanıma tamamlandığında bana e-posta ile bildir.</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="opt-email-notifications">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-card">
+          <div class="setting-info">
+            <strong>Altyazı Çeviri Önceliği</strong>
+            <p>Çeviri için hangi altyazı kaynağına öncelik verileceğini seçin.</p>
+          </div>
+          <div class="radio-group">
+            <label class="radio-option selected">
+              <input type="radio" name="subtitle-priority" value="ai" checked>
+              <div>
+                <strong>Eklenti AI Tanımlı Altyazılar</strong>
+                <p>Daha yüksek doğruluk için eklentinin AI konuşma tanıma tarafından oluşturulan altyazılara öncelik verin.</p>
+              </div>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="subtitle-priority" value="platform">
+              <div>
+                <strong>Platform Yerleşik Altyazıları</strong>
+                <p>Video platformu tarafından sağlanan orijinal altyazılara öncelik verin.</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <div class="setting-info">
+            <strong>Çift Dilli Altyazı</strong>
+            <p>Hem orijinal dildeki metni hem de çevirisini aynı anda gösterir. Dil öğrenme için idealdir.</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="opt-dual-subtitles">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Altyazı Stili -->
+      <section id="page-subtitle-style" class="page">
+        <h2>Altyazı Stili</h2>
+        <p class="page-desc">Altyazıların görünümünü özelleştirin.</p>
+
+        <div class="setting-card">
+          <label class="setting-label">Font Ailesi</label>
+          <select id="opt-font-family" class="select">
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Georgia">Georgia</option>
+            <option value="monospace">Monospace</option>
+          </select>
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">Font Boyutu</label>
+          <div class="slider-row">
+            <input type="range" id="opt-font-size" min="12" max="40" value="20" class="slider">
+            <span id="opt-font-size-val" class="slider-val">20px</span>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">Yazı Rengi</label>
+          <input type="color" id="opt-font-color" value="#FFFFFF" class="color-input">
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">Arka Plan Rengi</label>
+          <input type="color" id="opt-bg-color" value="#000000" class="color-input">
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">Arka Plan Opaklık</label>
+          <div class="slider-row">
+            <input type="range" id="opt-bg-opacity" min="0" max="100" value="80" class="slider">
+            <span id="opt-bg-opacity-val" class="slider-val">80%</span>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">Pozisyon</label>
+          <div class="radio-group horizontal">
+            <label class="radio-option selected">
+              <input type="radio" name="subtitle-position" value="bottom" checked>
+              <span>Alt</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="subtitle-position" value="top">
+              <span>Üst</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Canlı Önizleme -->
+        <div class="preview-card">
+          <label class="setting-label">Önizleme</label>
+          <div id="subtitle-preview" class="subtitle-preview">
+            Bu bir altyazı önizlemesidir.
+          </div>
+        </div>
+      </section>
+
+      <!-- Devre Dışı Siteler -->
+      <section id="page-disabled-sites" class="page">
+        <h2>Devre Dışı Siteler</h2>
+        <p class="page-desc">Eklentinin çalışmamasını istediğiniz siteleri ekleyin.</p>
+
+        <div class="setting-card">
+          <div class="input-row">
+            <input type="text" id="opt-site-url" placeholder="ornek.com" class="input">
+            <button id="btn-add-site" class="btn btn-accent">Ekle</button>
+          </div>
+          <div id="site-error" class="error-text"></div>
+        </div>
+
+        <div id="disabled-sites-list" class="sites-list">
+          <!-- Dinamik olarak doldurulacak -->
+        </div>
+      </section>
+
+      <!-- API Anahtarları -->
+      <section id="page-api-keys" class="page">
+        <h2>API Anahtarları</h2>
+        <p class="page-desc">AI model servislerinin API anahtarlarını yönetin. Anahtarlar tarayıcınızda yerel olarak saklanır.</p>
+
+        <div class="setting-card">
+          <label class="setting-label">Gemini API Key</label>
+          <div class="input-row">
+            <input type="password" id="opt-key-gemini" placeholder="Gemini API key..." class="input">
+            <button class="btn btn-sm toggle-visibility" data-target="opt-key-gemini">Göster</button>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">OpenAI API Key</label>
+          <div class="input-row">
+            <input type="password" id="opt-key-openai" placeholder="OpenAI API key..." class="input">
+            <button class="btn btn-sm toggle-visibility" data-target="opt-key-openai">Göster</button>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">DeepSeek API Key</label>
+          <div class="input-row">
+            <input type="password" id="opt-key-deepseek" placeholder="DeepSeek API key..." class="input">
+            <button class="btn btn-sm toggle-visibility" data-target="opt-key-deepseek">Göster</button>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <label class="setting-label">Claude API Key</label>
+          <div class="input-row">
+            <input type="password" id="opt-key-claude" placeholder="Claude API key..." class="input">
+            <button class="btn btn-sm toggle-visibility" data-target="opt-key-claude">Göster</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="options.js" type="module"></script>
 </body>
 </html>

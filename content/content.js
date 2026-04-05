@@ -50,6 +50,22 @@
       .uat-subtitle.visible {
         opacity: 1;
       }
+      /* Çift dilli altyazı */
+      .uat-original {
+        font-size: 0.8em;
+        color: rgba(255,255,255,0.6);
+        margin-bottom: 4px;
+        font-style: italic;
+      }
+      .uat-translation {
+        color: #fff;
+      }
+      /* Konuşmacı renkleri */
+      .uat-speaker-1 { color: #60a5fa; }
+      .uat-speaker-2 { color: #34d399; }
+      .uat-speaker-3 { color: #fbbf24; }
+      .uat-speaker-4 { color: #f87171; }
+      .uat-speaker-5 { color: #a78bfa; }
     `;
 
     subtitleContainer = document.createElement('div');
@@ -60,10 +76,37 @@
     document.body.appendChild(host);
   }
 
-  function showSubtitle(text) {
+  function showSubtitle(text, originalText) {
     if (!subtitleContainer) createSubtitleOverlay();
-    subtitleContainer.textContent = text;
+
+    // Konuşmacı renk kodlaması
+    const coloredText = colorSpeakers(text);
+
+    if (originalText) {
+      // Çift dilli mod: üst orijinal, alt çeviri
+      subtitleContainer.innerHTML = `
+        <div class="uat-original">${escapeHtml(originalText)}</div>
+        <div class="uat-translation">${coloredText}</div>
+      `;
+    } else {
+      subtitleContainer.innerHTML = `<div class="uat-translation">${coloredText}</div>`;
+    }
+
     subtitleContainer.className = 'uat-subtitle visible';
+  }
+
+  function colorSpeakers(text) {
+    // "Speaker 1:", "Speaker 2:" vb. etiketlerini renklendir
+    return escapeHtml(text).replace(
+      /Speaker\s*(\d):/gi,
+      (match, num) => `<span class="uat-speaker-${num}">Speaker ${num}:</span>`
+    );
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   function hideSubtitle() {
@@ -284,7 +327,7 @@
   chrome.runtime.onMessage.addListener((message) => {
     switch (message.type) {
       case 'SHOW_SUBTITLE':
-        showSubtitle(message.text);
+        showSubtitle(message.text, message.originalText || null);
         break;
 
       case 'HIDE_SUBTITLE':
