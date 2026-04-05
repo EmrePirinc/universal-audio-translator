@@ -27,6 +27,9 @@ chrome.runtime.onConnect.addListener((port) => {
           break;
         case 'AUDIO_DATA':
           break;
+        case 'LOG':
+          console.log('[OFFSCREEN]', message.message);
+          break;
         case 'ERROR':
           console.error('[UAT] Error from offscreen:', message.message);
           updateBadge('error');

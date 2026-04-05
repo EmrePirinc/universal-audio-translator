@@ -17,11 +17,11 @@ let isTTSPlaying = false;
 
 // Service worker'a port ile bağlan
 const port = chrome.runtime.connect({ name: 'offscreen' });
-console.log('[Offscreen] Port connected to service worker');
+log('[Offscreen] Port connected to service worker');
 
 // Port üzerinden mesajları dinle
 port.onMessage.addListener((message) => {
-  console.log('[Offscreen] Message received:', message.type);
+  log('[Offscreen] Message received:', message.type);
   try {
     switch (message.type) {
       case 'START_CAPTURE':
@@ -38,18 +38,23 @@ port.onMessage.addListener((message) => {
         break;
     }
   } catch (err) {
-    console.error('[Offscreen] Message handler error:', err);
+    log('[Offscreen] ERROR: Message handler error:', err);
     port.postMessage({ type: 'CAPTURE_FAILED', error: err.message });
   }
 });
 
+function log(...args) {
+  console.log(...args);
+  try { port.postMessage({ type: 'LOG', message: args.join(' ') }); } catch(e) {}
+}
+
 async function startCapture(streamId, config) {
-  console.log('[Offscreen] Starting capture');
+  log('[Offscreen] Starting capture');
   displayMode = config.displayMode || 'subtitles_only';
 
   try {
     // 1. Tab ses akışını al
-    console.log('[Offscreen] Step 1: getUserMedia with streamId:', streamId?.substring(0, 20) + '...');
+    log('[Offscreen] Step 1: getUserMedia...');
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         mandatory: {
@@ -58,11 +63,11 @@ async function startCapture(streamId, config) {
         },
       },
     });
-    console.log('[Offscreen] Step 1 OK: MediaStream acquired');
+    log('[Offscreen] Step 1 OK: MediaStream acquired');
 
     // 2. AudioContext (16kHz)
     audioContext = new AudioContext({ sampleRate: 16000 });
-    console.log('[Offscreen] Step 2 OK: AudioContext created');
+    log('[Offscreen] Step 2 OK: AudioContext created');
 
     // 3. Kaynak node
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
@@ -80,17 +85,19 @@ async function startCapture(streamId, config) {
     sourceNode.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    // 7. AudioWorklet — chrome.runtime.getURL ile mutlak yol
+    // 7. AudioWorklet
     const workletUrl = chrome.runtime.getURL('lib/audio-processor.js');
-    console.log('[Offscreen] Loading AudioWorklet from:', workletUrl);
+    log('[Offscreen] Step 3: Loading AudioWorklet...');
     await audioContext.audioWorklet.addModule(workletUrl);
     workletNode = new AudioWorkletNode(audioContext, 'audio-translator-processor');
     sourceNode.connect(workletNode);
+    log('[Offscreen] Step 3 OK: AudioWorklet loaded');
 
     // 8. responseModalities
     const responseModalities = displayMode === 'subtitles_only' ? ['TEXT'] : ['AUDIO', 'TEXT'];
 
     // 9. Gemini bağlantısı
+    log('[Offscreen] Step 4: Connecting to Gemini...');
     model = new GeminiLive();
 
     model.onTranslation((text, isFinal) => {
@@ -104,7 +111,7 @@ async function startCapture(streamId, config) {
     });
 
     model.onError((error) => {
-      console.error('[Offscreen] Model error:', error);
+      log('[Offscreen] ERROR: Model error:', error);
       port.postMessage({ type: 'ERROR', message: error.message });
     });
 
@@ -116,6 +123,7 @@ async function startCapture(streamId, config) {
       responseModalities,
       customDictionary: config.customDictionary || [],
     });
+    log('[Offscreen] Step 4 OK: Gemini connected!');
 
     // 10. PCM → Gemini
     workletNode.port.onmessage = (event) => {
@@ -124,11 +132,11 @@ async function startCapture(streamId, config) {
       }
     };
 
-    console.log('[Offscreen] Capture started, mode:', displayMode);
+    log('[Offscreen] Capture started, mode:', displayMode);
     port.postMessage({ type: 'CAPTURE_STARTED' });
 
   } catch (err) {
-    console.error('[Offscreen] Capture failed:', err);
+    log('[Offscreen] ERROR: Capture failed:', err);
     port.postMessage({ type: 'CAPTURE_FAILED', error: err.message });
   }
 }
@@ -178,7 +186,7 @@ async function playNextTTS() {
     bufferSource.onended = () => playNextTTS();
     bufferSource.start();
   } catch (err) {
-    console.error('[Offscreen] TTS playback error:', err);
+    log('[Offscreen] ERROR: TTS playback error:', err);
     playNextTTS();
   }
 }
@@ -202,7 +210,7 @@ function applyGainForMode() {
 // ─── Stop & Cleanup ───
 
 function stopCapture() {
-  console.log('[Offscreen] Stopping capture');
+  log('[Offscreen] Stopping capture');
   ttsQueue = [];
   isTTSPlaying = false;
   if (model) { model.disconnect(); model = null; }
