@@ -12,6 +12,9 @@ console.log('[UAT] Service worker loaded');
 // ─── Mesaj Yönlendirme ───
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Offscreen'e gönderilen mesajları service worker işlemesin
+  if (message._target === 'offscreen') return;
+
   switch (message.type) {
     case 'START':
       handleStart().then((result) => sendResponse(result));
@@ -88,7 +91,8 @@ async function handleStart() {
     await ensureOffscreenDocument();
 
     // Offscreen'e capture başlat komutu gönder
-    const response = await chrome.runtime.sendMessage({
+    // Not: sendMessage offscreen'e ulaşması için kısa gecikme gerekebilir
+    const response = await sendToOffscreen({
       type: 'START_CAPTURE',
       streamId,
       config: {
@@ -97,6 +101,7 @@ async function handleStart() {
         selectedModel: settings.selectedModel,
         voiceName: getActiveVoiceName(settings),
         customDictionary: settings.customDictionary,
+        displayMode: settings.displayMode,
       },
     });
 
@@ -118,7 +123,7 @@ async function handleStop() {
   try {
     // Offscreen'e durdurma komutu gönder
     try {
-      await chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+      await sendToOffscreen({ type: 'STOP_CAPTURE' });
     } catch (e) {
       // Offscreen zaten kapalı olabilir
     }
@@ -205,6 +210,26 @@ function updateBadge(state) {
       chrome.action.setBadgeText({ text: '' });
       break;
   }
+}
+
+// ─── Offscreen'e Mesaj Gönderme ───
+
+async function sendToOffscreen(message) {
+  // Offscreen document'ın yüklenmesini bekle
+  await new Promise((r) => setTimeout(r, 300));
+
+  return new Promise((resolve) => {
+    // target: offscreen olarak işaretli mesaj gönder
+    message._target = 'offscreen';
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[UAT] Offscreen message error:', chrome.runtime.lastError.message);
+        resolve({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve(response);
+      }
+    });
+  });
 }
 
 // ─── Yardımcılar ───

@@ -16,6 +16,9 @@ let isTTSPlaying = false;
 
 // Service worker'dan mesajları dinle
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Sadece offscreen'e yönelik mesajları işle
+  if (message._target && message._target !== 'offscreen') return;
+
   switch (message.type) {
     case 'START_CAPTURE':
       startCapture(message.streamId, message.config)
