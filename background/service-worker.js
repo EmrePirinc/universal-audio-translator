@@ -56,16 +56,18 @@ chrome.runtime.onConnect.addListener((port) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'START':
-      handleStart()
-        .then((r) => sendResponse(r))
-        .catch((e) => sendResponse({ success: false, error: e.message }));
-      return true;
+      // Hemen yanıt ver, işi arka planda yap (popup kapanabilir)
+      sendResponse({ success: true, pending: true });
+      handleStart().catch((e) => {
+        console.error('[UAT] Start error:', e);
+        updateBadge('error');
+      });
+      return false;
 
     case 'STOP':
-      handleStop()
-        .then((r) => sendResponse(r))
-        .catch((e) => sendResponse({ success: false, error: e.message }));
-      return true;
+      sendResponse({ success: true, pending: true });
+      handleStop().catch((e) => console.error('[UAT] Stop error:', e));
+      return false;
 
     case 'GET_STATUS':
       sendResponse({ isCapturing, activeTabId });
@@ -81,24 +83,31 @@ async function handleStart() {
 
   const settings = await getSettings();
   if (!settings.apiKeys.gemini) {
-    return { success: false, error: 'Gemini API key girilmemiş.' };
+    console.error('[UAT] Gemini API key girilmemiş');
+    updateBadge('error');
+    return;
   }
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) {
-    return { success: false, error: 'Aktif sekme bulunamadı.' };
+    console.error('[UAT] Aktif sekme bulunamadı');
+    updateBadge('error');
+    return;
   }
   activeTabId = tab.id;
+  updateBadge('connecting');
 
   // Eski offscreen'i kapat
   try {
     if (await chrome.offscreen.hasDocument()) {
       await chrome.offscreen.closeDocument();
+      offscreenPort = null;
     }
   } catch (e) {}
 
   // Stream ID al
   const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: activeTabId });
+  console.log('[UAT] Stream ID alındı');
 
   // Yeni offscreen document oluştur
   await chrome.offscreen.createDocument({
@@ -106,15 +115,20 @@ async function handleStart() {
     reasons: ['USER_MEDIA'],
     justification: 'Tab audio capture for translation',
   });
+  console.log('[UAT] Offscreen document oluşturuldu');
 
-  // Port bağlantısını bekle (offscreen document yüklenince bağlanır)
-  await waitForOffscreenPort(3000);
+  // Port bağlantısını bekle
+  await waitForOffscreenPort(5000);
 
   if (!offscreenPort) {
-    return { success: false, error: 'Offscreen document bağlanamadı.' };
+    console.error('[UAT] Offscreen port bağlanamadı');
+    updateBadge('error');
+    return;
   }
 
-  // Offscreen'e capture başlat komutu gönder (port üzerinden)
+  console.log('[UAT] Offscreen port hazır, capture başlatılıyor');
+
+  // Offscreen'e capture başlat
   offscreenPort.postMessage({
     type: 'START_CAPTURE',
     streamId,
@@ -127,8 +141,6 @@ async function handleStart() {
       displayMode: settings.displayMode || 'subtitles_only',
     },
   });
-
-  return { success: true };
 }
 
 // ─── Stop ───
@@ -186,6 +198,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 function updateBadge(state) {
   const map = {
     active: { text: 'ON', color: '#22c55e' },
+    connecting: { text: '...', color: '#eab308' },
     error: { text: '!', color: '#ef4444' },
     idle: { text: '', color: '#666' },
   };
