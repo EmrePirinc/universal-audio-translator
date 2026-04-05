@@ -53,6 +53,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function handleStart() {
   try {
+    // Önceki oturum varsa önce temizle
+    if (isCapturing) {
+      await handleStop();
+    }
+
     const settings = await getSettings();
 
     if (!settings.apiKeys.gemini) {
@@ -65,6 +70,16 @@ async function handleStart() {
       return { success: false, error: 'Aktif sekme bulunamadı.' };
     }
     activeTabId = tab.id;
+
+    // Önceki offscreen document varsa kaldır (stream temizlemek için)
+    try {
+      const hasDoc = await chrome.offscreen.hasDocument();
+      if (hasDoc) {
+        await chrome.offscreen.closeDocument();
+      }
+    } catch (e) {
+      // Doküman yoksa hata vermesi normal
+    }
 
     // tabCapture ile stream ID al
     const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: activeTabId });
@@ -101,7 +116,23 @@ async function handleStart() {
 
 async function handleStop() {
   try {
-    await chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+    // Offscreen'e durdurma komutu gönder
+    try {
+      await chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
+    } catch (e) {
+      // Offscreen zaten kapalı olabilir
+    }
+
+    // Offscreen document'ı kapat (stream'i serbest bırakır)
+    try {
+      const hasDoc = await chrome.offscreen.hasDocument();
+      if (hasDoc) {
+        await chrome.offscreen.closeDocument();
+      }
+    } catch (e) {
+      // Zaten kapalı
+    }
+
     isCapturing = false;
     activeTabId = null;
     updateBadge('idle');
@@ -113,6 +144,7 @@ async function handleStop() {
     return { success: true };
   } catch (err) {
     console.error('[UAT] Stop error:', err);
+    isCapturing = false;
     return { success: false, error: err.message };
   }
 }
