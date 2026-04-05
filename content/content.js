@@ -12,6 +12,11 @@
   let floatingBubble = null;
   let floatingPanel = null;
 
+  // Transcript & Notes (WBS 1.10)
+  const transcriptEntries = [];
+  const notes = [];
+  let sessionStartTime = null;
+
   // ─── 1.5.1 Altyazı Overlay Sistemi ───
 
   function createSubtitleOverlay() {
@@ -263,14 +268,42 @@
         <strong>Universal Translator</strong>
         <span id="uat-panel-close" style="cursor:pointer;opacity:0.5;font-size:18px">&times;</span>
       </div>
-      <div style="padding:16px">
-        <div style="margin-bottom:12px">
-          <label style="display:block;margin-bottom:4px;opacity:0.7;font-size:12px">Durum</label>
-          <span id="uat-panel-status" style="color:${isActive ? '#22c55e' : '#666'}">${isActive ? 'Aktif' : 'Pasif'}</span>
+      <div style="padding:16px;max-height:420px;overflow-y:auto">
+        <!-- Durum & Kontrol -->
+        <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+          <span id="uat-panel-status" style="font-size:13px;color:${isActive ? '#22c55e' : '#666'}">${isActive ? 'Aktif' : 'Pasif'}</span>
+          <button id="uat-panel-toggle" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:#fff;background:${isActive ? '#ef4444' : '#22c55e'}">
+            ${isActive ? 'Durdur' : 'Başlat'}
+          </button>
         </div>
-        <button id="uat-panel-toggle" style="width:100%;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:#fff;background:${isActive ? '#ef4444' : '#22c55e'}">
-          ${isActive ? 'Durdur' : 'Başlat'}
-        </button>
+
+        <!-- Özet (WBS 1.10.2) -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong style="font-size:13px;opacity:0.7">Özet</strong>
+            <button id="uat-btn-summary" style="padding:4px 10px;border:none;border-radius:4px;background:#7c3aed;color:#fff;font-size:11px;cursor:pointer">Özet Oluştur</button>
+          </div>
+          <div id="uat-summary-area" style="font-size:12px;color:rgba(255,255,255,0.6);min-height:30px;max-height:120px;overflow-y:auto">
+            ${transcriptEntries.length > 0 ? transcriptEntries.length + ' satır çeviri mevcut' : 'Henüz çeviri yok'}
+          </div>
+        </div>
+
+        <!-- Not Ekleme (WBS 1.10.3) -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;margin-top:12px">
+          <strong style="font-size:13px;opacity:0.7">Notlar</strong>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <input id="uat-note-input" type="text" placeholder="Not ekle..." style="flex:1;padding:6px 10px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:rgba(255,255,255,0.05);color:#fff;font-size:12px;outline:none">
+            <button id="uat-btn-add-note" style="padding:6px 10px;border:none;border-radius:4px;background:#22c55e;color:#fff;font-size:11px;cursor:pointer">+</button>
+          </div>
+          <div id="uat-notes-list" style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.5);max-height:100px;overflow-y:auto"></div>
+        </div>
+
+        <!-- İndir (WBS 1.10.4) -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;margin-top:12px;display:flex;gap:6px">
+          <button class="uat-dl-btn" data-format="srt" style="flex:1;padding:6px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:transparent;color:#fff;font-size:11px;cursor:pointer">SRT</button>
+          <button class="uat-dl-btn" data-format="txt" style="flex:1;padding:6px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:transparent;color:#fff;font-size:11px;cursor:pointer">TXT</button>
+          <button class="uat-dl-btn" data-format="html" style="flex:1;padding:6px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:transparent;color:#fff;font-size:11px;cursor:pointer">PDF</button>
+        </div>
       </div>
     `;
 
@@ -283,7 +316,111 @@
     });
 
     floatingPanel.querySelector('#uat-panel-toggle').addEventListener('click', toggleTranslation);
+
+    // Özet oluştur
+    floatingPanel.querySelector('#uat-btn-summary').addEventListener('click', async () => {
+      const area = floatingPanel.querySelector('#uat-summary-area');
+      if (transcriptEntries.length === 0) {
+        area.textContent = 'Henüz çeviri yok, önce çeviriyi başlatın.';
+        return;
+      }
+      area.textContent = 'Özet oluşturuluyor...';
+      // Service worker'a özet isteği gönder
+      const result = await chrome.runtime.sendMessage({
+        type: 'REQUEST_SUMMARY',
+        transcript: transcriptEntries.map((e) => e.text).join(' '),
+      });
+      area.textContent = result?.summary || 'Özet oluşturulamadı.';
+    });
+
+    // Not ekle
+    floatingPanel.querySelector('#uat-btn-add-note').addEventListener('click', () => {
+      const input = floatingPanel.querySelector('#uat-note-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const elapsed = sessionStartTime ? Date.now() - sessionStartTime : 0;
+      notes.push({ timestamp: formatTime(elapsed), text });
+      input.value = '';
+      renderNotes();
+    });
+
+    // İndir butonları
+    floatingPanel.querySelectorAll('.uat-dl-btn').forEach((btn) => {
+      btn.addEventListener('click', () => downloadTranscript(btn.dataset.format));
+    });
+
+    renderNotes();
   }
+
+  function renderNotes() {
+    if (!floatingPanel) return;
+    const list = floatingPanel.querySelector('#uat-notes-list');
+    if (!list) return;
+    if (notes.length === 0) {
+      list.innerHTML = '<div style="padding:4px 0">Henüz not yok</div>';
+      return;
+    }
+    list.innerHTML = notes.map((n, i) =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span>[${n.timestamp}] ${escapeHtml(n.text)}</span>
+        <span class="uat-del-note" data-i="${i}" style="cursor:pointer;color:#ef4444">&times;</span>
+      </div>`
+    ).join('');
+    list.querySelectorAll('.uat-del-note').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        notes.splice(+btn.dataset.i, 1);
+        renderNotes();
+      });
+    });
+  }
+
+  function downloadTranscript(format) {
+    if (transcriptEntries.length === 0) return;
+
+    let content, mimeType, ext;
+    const date = new Date().toISOString().slice(0, 10);
+
+    if (format === 'srt') {
+      content = transcriptEntries.map((e, i) => {
+        const startMs = e.elapsed;
+        const endMs = i + 1 < transcriptEntries.length ? transcriptEntries[i + 1].elapsed : startMs + 3000;
+        return `${i + 1}\n${fmtSRT(startMs)} --> ${fmtSRT(endMs)}\n${e.text}\n`;
+      }).join('\n');
+      mimeType = 'text/srt'; ext = 'srt';
+    } else if (format === 'txt') {
+      content = `Çeviri Transkripti — ${new Date().toLocaleString('tr-TR')}\n${'─'.repeat(40)}\n\n`;
+      content += transcriptEntries.map((e) => `[${e.timestamp}] ${e.text}`).join('\n');
+      if (notes.length > 0) {
+        content += `\n\n${'─'.repeat(40)}\nNotlar:\n`;
+        content += notes.map((n) => `[${n.timestamp}] ${n.text}`).join('\n');
+      }
+      mimeType = 'text/plain'; ext = 'txt';
+    } else {
+      content = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Transkript</title>
+<style>body{font-family:Arial;max-width:800px;margin:40px auto;line-height:1.6}h1{color:#7c3aed}p{margin:6px 0}strong{color:#374151}</style></head><body>
+<h1>Çeviri Transkripti</h1><p style="color:#6b7280">${new Date().toLocaleString('tr-TR')}</p><hr>`;
+      content += transcriptEntries.map((e) => `<p><strong>[${e.timestamp}]</strong> ${escapeHtml(e.text)}</p>`).join('\n');
+      content += '</body></html>';
+      mimeType = 'text/html'; ext = 'html';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `translation_${date}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function fmtSRT(ms) {
+    const s = Math.floor(ms / 1000); const m = Math.floor(s / 60); const h = Math.floor(m / 60);
+    return `${pad(h)}:${pad(m % 60)}:${pad(s % 60)},${String(ms % 1000).padStart(3, '0')}`;
+  }
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000); const m = Math.floor(s / 60); const h = Math.floor(m / 60);
+    return `${pad(h)}:${pad(m % 60)}:${pad(s % 60)}`;
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
 
   // ─── Toggle Çeviri ───
 
@@ -328,6 +465,13 @@
     switch (message.type) {
       case 'SHOW_SUBTITLE':
         showSubtitle(message.text, message.originalText || null);
+        // Transkripte kaydet
+        if (!sessionStartTime) sessionStartTime = Date.now();
+        transcriptEntries.push({
+          timestamp: formatTime(Date.now() - sessionStartTime),
+          elapsed: Date.now() - sessionStartTime,
+          text: message.text,
+        });
         break;
 
       case 'HIDE_SUBTITLE':
