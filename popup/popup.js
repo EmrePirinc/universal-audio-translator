@@ -53,13 +53,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => { apiKeySection.style.display = 'none'; }, 1000);
   });
 
-  // Başlat/Durdur
+  // Başlat/Durdur — çift tıklamayı önle
+  let isProcessing = false;
   btnToggle.addEventListener('click', async () => {
+    if (isProcessing) return;
+    isProcessing = true;
+    btnToggle.disabled = true;
+
     const currentSettings = await getSettings();
     if (!currentSettings.apiKeys.gemini) {
       apiKeySection.style.display = 'block';
       apiKeyStatus.textContent = 'Önce API key girin';
       apiKeyStatus.style.color = '#ef4444';
+      isProcessing = false;
+      btnToggle.disabled = false;
       return;
     }
 
@@ -78,6 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusDot.className = 'status-dot error';
       }
     }
+    isProcessing = false;
+    btnToggle.disabled = false;
   });
 
   // Boyut slider

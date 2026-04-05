@@ -21,19 +21,25 @@ console.log('[Offscreen] Port connected to service worker');
 
 // Port üzerinden mesajları dinle
 port.onMessage.addListener((message) => {
-  switch (message.type) {
-    case 'START_CAPTURE':
-      startCapture(message.streamId, message.config);
-      break;
-    case 'STOP_CAPTURE':
-      stopCapture();
-      break;
-    case 'SET_GAIN':
-      if (gainNode) gainNode.gain.value = message.value;
-      break;
-    case 'SET_DISPLAY_MODE':
-      setDisplayMode(message.mode);
-      break;
+  console.log('[Offscreen] Message received:', message.type);
+  try {
+    switch (message.type) {
+      case 'START_CAPTURE':
+        startCapture(message.streamId, message.config);
+        break;
+      case 'STOP_CAPTURE':
+        stopCapture();
+        break;
+      case 'SET_GAIN':
+        if (gainNode) gainNode.gain.value = message.value;
+        break;
+      case 'SET_DISPLAY_MODE':
+        setDisplayMode(message.mode);
+        break;
+    }
+  } catch (err) {
+    console.error('[Offscreen] Message handler error:', err);
+    port.postMessage({ type: 'CAPTURE_FAILED', error: err.message });
   }
 });
 
@@ -43,6 +49,7 @@ async function startCapture(streamId, config) {
 
   try {
     // 1. Tab ses akışını al
+    console.log('[Offscreen] Step 1: getUserMedia with streamId:', streamId?.substring(0, 20) + '...');
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         mandatory: {
@@ -51,9 +58,11 @@ async function startCapture(streamId, config) {
         },
       },
     });
+    console.log('[Offscreen] Step 1 OK: MediaStream acquired');
 
     // 2. AudioContext (16kHz)
     audioContext = new AudioContext({ sampleRate: 16000 });
+    console.log('[Offscreen] Step 2 OK: AudioContext created');
 
     // 3. Kaynak node
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
@@ -71,8 +80,10 @@ async function startCapture(streamId, config) {
     sourceNode.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    // 7. AudioWorklet
-    await audioContext.audioWorklet.addModule('../lib/audio-processor.js');
+    // 7. AudioWorklet — chrome.runtime.getURL ile mutlak yol
+    const workletUrl = chrome.runtime.getURL('lib/audio-processor.js');
+    console.log('[Offscreen] Loading AudioWorklet from:', workletUrl);
+    await audioContext.audioWorklet.addModule(workletUrl);
     workletNode = new AudioWorkletNode(audioContext, 'audio-translator-processor');
     sourceNode.connect(workletNode);
 
