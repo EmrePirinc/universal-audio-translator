@@ -19,6 +19,7 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onMessage.addListener((message) => {
       switch (message.type) {
         case 'TRANSLATION':
+          console.log('[UAT] Translation received from offscreen:', message.text?.substring(0, 80));
           forwardToContentScript({
             type: 'SHOW_SUBTITLE',
             text: message.text,
@@ -181,9 +182,14 @@ function waitForOffscreenPort(timeoutMs) {
 }
 
 function forwardToContentScript(message) {
-  if (activeTabId) {
-    chrome.tabs.sendMessage(activeTabId, message).catch(() => {});
+  if (!activeTabId) {
+    console.error('[UAT] Cannot forward to content script: activeTabId is null');
+    return;
   }
+  console.log('[UAT] Forwarding to tab', activeTabId, ':', message.type);
+  chrome.tabs.sendMessage(activeTabId, message).catch((err) => {
+    console.error('[UAT] Failed to forward to content script:', err.message);
+  });
 }
 
 function startKeepAlive() {

@@ -98,9 +98,10 @@ async function startCapture(streamId, config) {
 
     // 9. Gemini bağlantısı
     log('[Offscreen] Step 4: Connecting to Gemini...');
-    model = new GeminiLive();
+    model = new GeminiLive(log);
 
     model.onTranslation((text, isFinal) => {
+      log('[Offscreen] Translation callback fired:', text?.substring(0, 80));
       port.postMessage({ type: 'TRANSLATION', text, isFinal });
     });
 
@@ -115,19 +116,26 @@ async function startCapture(streamId, config) {
       port.postMessage({ type: 'ERROR', message: error.message });
     });
 
-    await model.connect({
+    const geminiConfig = {
       apiKey: config.apiKey,
       targetLanguage: config.targetLanguage,
       model: config.selectedModel,
       voiceName: config.voiceName || 'Kore',
       responseModalities,
       customDictionary: config.customDictionary || [],
-    });
+    };
+    log('[Offscreen] Gemini config: model=' + geminiConfig.model + ', lang=' + geminiConfig.targetLanguage + ', modalities=' + responseModalities.join(','));
+    await model.connect(geminiConfig);
     log('[Offscreen] Step 4 OK: Gemini connected!');
 
     // 10. PCM → Gemini
+    let pcmChunkCount = 0;
     workletNode.port.onmessage = (event) => {
       if (event.data.type === 'pcm_chunk') {
+        pcmChunkCount++;
+        if (pcmChunkCount <= 3 || pcmChunkCount % 40 === 0) {
+          log('[Offscreen] PCM chunk #' + pcmChunkCount + ' sent to Gemini (' + event.data.data.byteLength + ' bytes)');
+        }
         model.sendAudio(arrayBufferToBase64(event.data.data));
       }
     };

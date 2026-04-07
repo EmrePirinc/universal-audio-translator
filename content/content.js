@@ -462,6 +462,7 @@
   // ─── 1.5.6 Mesaj Dinleme ───
 
   chrome.runtime.onMessage.addListener((message) => {
+    console.log('[UAT] Content script received:', message.type, message.text?.substring(0, 50) || '');
     switch (message.type) {
       case 'SHOW_SUBTITLE':
         showSubtitle(message.text, message.originalText || null);
